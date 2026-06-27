@@ -106,14 +106,16 @@
 </style>
 </head>
 <body>
+<div class="card" role="main">
+  <h1>دبستان معاد خرگوشی — نمایش کسر و عدد مخلوط</h1>
 
-<div id="Screen-Loading" style="display:none; background:#f7f9fc; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1000; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px;">
-    <div style="font-size: 3.5rem; margin-bottom: 15px;">🐰</div>
-    <h1 style="color:#6a1b9a; font-size:24pt; margin-bottom:30px; font-weight: bold;">نمایش کسر و عدد مخلوط</h1>
-    <div style="background:#e0e0e0; border-radius:12px; height:18px; width:80%; max-width:400px; overflow:hidden; margin-bottom:18px; border:2px solid #6a1b9a; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);">
-        <div id="portal-loading-bar" style="background: linear-gradient(90deg, #ff007f, #aa00ff, #00b0ff); width:0%; height:100%; transition:width 0.3s ease; box-shadow: 0 0 10px rgba(170,0,255,0.5);"></div>
-    </div>
-    <p id="portal-loading-text" style="font-size:13pt; color:#6a1b9a; font-weight:bold;"></p>
+  <div id="Screen-Loading" style="display:none; background:#f7f9fc; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1000; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px;">
+      <div style="font-size: 3.5rem; margin-bottom: 15px;">🐰</div>
+      <h1 style="color:#6a1b9a; font-size:24pt; margin-bottom:30px; font-weight: bold;">نمایش کسر و عدد مخلوط</h1>
+      <div style="background:#e0e0e0; border-radius:12px; height:18px; width:80%; max-width:400px; overflow:hidden; margin-bottom:18px; border:2px solid #6a1b9a; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);">
+          <div id="portal-loading-bar" style="background: linear-gradient(90deg, #ff007f, #aa00ff, #00b0ff); width:0%; height:100%; transition:width 0.3s ease; box-shadow: 0 0 10px rgba(170,0,255,0.5);"></div>
+      </div>
+      <p id="portal-loading-text" style="font-size:13pt; color:#6a1b9a; font-weight:bold;"></p>
 </div>
 
 <div class="card screen" id="screen-register">
@@ -244,6 +246,8 @@
   </div>
 </div>
 
+</div>
+
 <script>
 let STORAGE = 'GMC_FRAC_V3_playerState';
 let GAME_STATE_STORAGE = 'GMC_FRAC_V3_gameState';
@@ -255,7 +259,7 @@ const GAME_NAME="نمایش کسر و عدد مخلوط";
 const axisDenoms=[2,3,4,5,6,7,8];
 
 let canvas,ctx;
-let playerData={name:'',totalGames:0,totalStars:0, answerKeyUsedCount:0, currentScreen: 'register'};
+let playerData={name:'',totalGames:0,totalStars:0, answerKeyUsedCount:0, currentScreen: 'register', reportSent: false};
 let questions=[],qIndex=0,currentQ=null;
 let tempScore = 0;
 
@@ -651,8 +655,16 @@ function checkAnswer(){
   showFeedback("آفرین! پاسخ صحیح است.",true); flowerEffect();
   document.getElementById('btnCheck').style.display='none';
   document.getElementById('btnShowAnswer').style.display='none';
-  document.getElementById('nextBtn').style.display='inline-block';
   document.getElementById('btnNewQuestion').style.display='none';
+  
+  const nextButton = document.getElementById('nextBtn');
+  if (qIndex === QUESTIONS_PER_GAME - 1) {
+      nextButton.textContent = '🏁 پایان';
+  } else {
+      nextButton.textContent = 'مرحله بعد';
+  }
+  nextButton.style.display = 'inline-block';
+  
   saveGameState(); 
 }
 
@@ -678,10 +690,6 @@ function showAnswer() {
     
     wholeInp.placeholder = ""; numInp.placeholder = ""; denInp.placeholder = "";
     wholeInp.disabled = true; numInp.disabled = true; denInp.disabled = true;
-    
-    if (q.kind === "mixed") wholeInp.classList.add('correct');
-    numInp.classList.add('correct');
-    denInp.classList.add('correct');
 
     drawCurrentQuestion(true); 
     let answerText = q.kind === "mixed" ? 
@@ -706,7 +714,7 @@ function generateNewQuestionInSameStage() {
 function updateReportUI() {
     const btn = document.getElementById('btnSendReport');
     if (btn) {
-        const isSent = localStorage.getItem(LOCAL_STORAGE_REPORT_SENT) === 'true'; 
+        const isSent = localStorage.getItem(STORAGE) ? JSON.parse(localStorage.getItem(STORAGE)).reportSent : false;
         if (isSent) {
             btn.disabled = true;
             btn.textContent = "ارسال شد ✅";
@@ -724,7 +732,7 @@ async function finishGame(shouldUpdateScore = true){
     if(shouldUpdateScore){
       if(tempScore > 0){ playerData.totalStars++; }
       playerData.totalGames++; 
-      localStorage.removeItem(LOCAL_STORAGE_REPORT_SENT);
+      playerData.reportSent = false;
     }
     clearGameState();
     saveProfile();
@@ -832,8 +840,11 @@ document.getElementById('btnRegister').addEventListener('click',()=>{
 });
 
 document.getElementById('nextBtn').addEventListener('click',()=>{
+  if (qIndex === QUESTIONS_PER_GAME - 1) {
+      finishGame(true);
+      return;
+  }
   qIndex++; 
-  if(qIndex>=QUESTIONS_PER_GAME){ finishGame(true); return; }
   saveGameState(); 
   showQuestionUI(questions[qIndex]);
 });
@@ -842,7 +853,6 @@ document.getElementById('btnStartNew').addEventListener('click',()=>{
     questions = buildQuestions();
     qIndex = 0; tempScore = 0; playerData.answerKeyUsedCount = 0;
     playerData.currentScreen = 'game';
-    localStorage.removeItem(LOCAL_STORAGE_REPORT_SENT);
     saveGameState(); 
     saveProfile();
     showScreen('screen-game');
@@ -857,7 +867,8 @@ document.getElementById('btnNewQuestion').addEventListener('click',generateNewQu
 document.getElementById('btnSendReport')?.addEventListener('click',()=>{
   const txt=document.getElementById('report-content').innerText;
   const btn = document.getElementById('btnSendReport');
-  localStorage.setItem(LOCAL_STORAGE_REPORT_SENT, 'true');
+  playerData.reportSent = true;
+  saveProfile();
   btn.textContent = "ارسال شد ✅";
   btn.style.backgroundColor = '#4CAF50';
   btn.disabled = true;
