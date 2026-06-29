@@ -1,4 +1,4 @@
-const CACHE_NAME = 'division-game-v1';
+const CACHE_NAME = 'fraction-representation-v1';
 const ASSETS = [
   './',
   './index.html',
